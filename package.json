@@ -4,7 +4,11 @@
   "description": "Customer identity, access grants and consent management API. Built with Express 5, Prisma 7, PostgreSQL and MongoDB.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsx -p .",
+    "start": "node dist/src/server.js",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -17,5 +21,10 @@
   "bugs": {
     "url": "https://github.com/CecilJS/consent-api/issues"
   },
-  "homepage": "https://github.com/CecilJS/consent-api#readme"
+  "homepage": "https://github.com/CecilJS/consent-api#readme",
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
 }
