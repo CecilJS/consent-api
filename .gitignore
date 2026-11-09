@@ -1,0 +1,20 @@
+# dependencies and build output
+node_modules/
+dist/
+coverage/
+
+# generated code (rebuilt by `npx prisma generate`)
+src/generated/
+
+# secrets: never commit these
+.env
+.env.test
+
+# curl cookie jars from the lab checkpoints contain live tokens
+*jar.txt
+
+# Editors and OS files
+*.log
+.idea/
+.vscode/
+.DS_Store
