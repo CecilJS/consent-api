@@ -17,7 +17,7 @@ export const httpLogger = pinoHttp({
     err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
   // Log only what we need. Headers carry tokens and cookies.
   serializers: {
-    req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+    req: (req) => ({ id: req.id, method: req.method, path: req.url.split('?')[0] }),
     res: (res) => ({ statusCode: res.statusCode }),
   },
 });
