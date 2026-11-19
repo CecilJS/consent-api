@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CUSTOMER
+  SUPPORT
+  ADMIN
+}
+
+enum CustomerStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum AccessLevel {
+  READ
+  WRITE
+  ADMIN
+}
+
+enum ConsentStatus {
+  GRANTED
+  WITHDRAWN
+}
+
+model Customer {
+  id           String         @id @default(uuid()) @db.Uuid
+  email        String         @unique
+  fullName     String
+  passwordHash String
+  role         Role           @default(CUSTOMER)
+  status       CustomerStatus @default(ACTIVE)
+  tokenVersion Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  grants        AccessGrant[]  @relation("GrantSubject")
+  grantsIssued  AccessGrant[]  @relation("GrantIssuer")
+  grantsRevoked AccessGrant[]  @relation("GrantRevoker")
+  consents      Consent[]
+  refreshTokens RefreshToken[]
+
+  @@index([createdAt, id]) // supports keyset pagination (PR 9)
+}
+
+model BackendSystem {
+  id          String      @id @default(uuid()) @db.Uuid
+  key         String      @unique // stable slug other services use, e.g. "billing"
+  name        String
+  description String?
+  maxLevel    AccessLevel @default(ADMIN) // the highest level this system supports
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+
+  grants AccessGrant[]
+}
+
+model AccessGrant {
+  id          String      @id @default(uuid()) @db.Uuid
+  customerId  String      @db.Uuid
+  systemId    String      @db.Uuid
+  level       AccessLevel
+  reason      String // every grant needs a justification for auditors
+  grantedById String      @db.Uuid
+  expiresAt   DateTime? // time-boxed access; null = until revoked
+  revokedAt   DateTime? // grants are never deleted, only revoked
+  revokedById String?     @db.Uuid
+  createdAt   DateTime    @default(now())
+
+  customer  Customer      @relation("GrantSubject", fields: [customerId], references: [id], onDelete: Restrict)
+  system    BackendSystem @relation(fields: [systemId], references: [id], onDelete: Restrict)
+  grantedBy Customer      @relation("GrantIssuer", fields: [grantedById], references: [id], onDelete: Restrict)
+  revokedBy Customer?     @relation("GrantRevoker", fields: [revokedById], references: [id], onDelete: Restrict)
+
+  @@index([customerId, revokedAt])
+  @@index([systemId])
+}
+
+model ConsentPurpose {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique // "marketing_email", "analytics", ...
+  description String
+  version     Int     @default(1) // bump when the wording changes materially
+  required    Boolean @default(false)
+
+  consents Consent[]
+}
+
+model Consent {
+  id             String        @id @default(uuid()) @db.Uuid
+  customerId     String        @db.Uuid
+  purposeId      String        @db.Uuid
+  status         ConsentStatus
+  purposeVersion Int // which version of the wording the customer agreed to
+  channel        String // web | mobile | api
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  purpose  ConsentPurpose @relation(fields: [purposeId], references: [id], onDelete: Restrict)
+
+  @@unique([customerId, purposeId]) // current state only; history lives in the audit log
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  customerId String    @db.Uuid
+  familyId   String    @db.Uuid // all tokens descended from one login
+  tokenHash  String    @unique // SHA-256 of the token, never the token itself
+  expiresAt  DateTime
+  usedAt     DateTime?
+  revokedAt  DateTime?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([customerId])
+}
+
+model ServiceClient {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  keyPrefix String    @unique // non-secret lookup handle
+  keyHash   String
+  scopes    String[]
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model OutboxEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  type        String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+  attempts    Int       @default(0)
+  lastError   String?
+
+  @@index([publishedAt, createdAt])
+}
