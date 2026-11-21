@@ -8,8 +8,7 @@ for f in .env .env.test; do
 done
 
 secret() { openssl rand -hex 24; } # hex: nothing that needs URL-encoding in connection strings
-PG=$(secret); MONGO_ROOT=$(secret); MONGO_APP=$(secret); JWT=$(openssl rand -hex 48)
-
+PG=$(secret); MONGO_ROOT=$(secret); MONGO_APP=$(secret); SEED=$(secret); JWT=$(openssl rand -hex 48)
 render() { # render <template> <output>
   sed -e "s|__POSTGRES_PASSWORD__|$PG|g" \
       -e "s|__MONGO_ROOT_PASSWORD__|$MONGO_ROOT|g" \
